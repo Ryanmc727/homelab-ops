@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Homelab OPS Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060a12;--bg2:#0a1020;--bg3:#0f1828;
+  --green:#00ff88;--green-d:#00aa55;
+  --cyan:#00d4ff;--red:#ff3344;--orange:#ff8811;--yellow:#ffcc00;--purple:#a855f7;
+  --text:#7a9ab5;--text2:#adc0d5;--bright:#d0e4f0;
+  --border:rgba(0,255,136,.18);--border2:rgba(0,212,255,.15);
+  --glow-g:0 0 14px rgba(0,255,136,.45);--glow-c:0 0 14px rgba(0,212,255,.45);--glow-r:0 0 14px rgba(255,51,68,.55);
+}
+body{background-color:var(--bg);background-image:linear-gradient(rgba(0,255,136,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.025) 1px,transparent 1px);background-size:40px 40px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;min-height:100vh;min-width:1100px;overflow-x:auto}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);pointer-events:none;z-index:1000}
+#mc{position:fixed;top:0;left:0;width:100%;height:100%;opacity:.04;pointer-events:none;z-index:0}
+.page{position:relative;z-index:1;max-width:1720px;margin:0 auto;padding:10px 12px}
+
+/* ── HEADER ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin-bottom:10px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(0,255,136,.04) 0%,transparent 60%),var(--bg2);position:relative;overflow:hidden}
+header::before{content:'';position:absolute;top:0;left:-100%;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);animation:hscan 4s ease-in-out infinite}
+@keyframes hscan{0%{left:-100%}100%{left:100%}}
+.logo-title{font-size:20px;font-weight:700;letter-spacing:5px;color:var(--green);text-shadow:var(--glow-g);text-transform:uppercase}
+.logo-sub{font-size:10px;letter-spacing:3px;color:var(--text);margin-top:3px;opacity:.8}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.clock{font-size:22px;font-weight:700;color:var(--cyan);letter-spacing:3px;text-shadow:var(--glow-c)}
+.dateline{font-size:9px;color:var(--text);letter-spacing:2px}
+.api-pills{display:flex;gap:12px;font-size:9px;color:var(--text)}
+.pill{display:flex;align-items:center;gap:4px;letter-spacing:1px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+.dot.dead{background:var(--red)}.dot.warn{background:var(--orange)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── STAT CARDS ── */
+.cards{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px}
+.card{background:var(--bg2);border:1px solid var(--border);padding:14px 16px 10px;position:relative;overflow:hidden;transition:border-color .3s;cursor:default}
+.card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.card.c-red::after{background:var(--red)}.card.c-orange::after{background:var(--orange)}
+.card.c-yellow::after{background:var(--yellow)}.card.c-green::after{background:var(--green)}
+.card.c-cyan::after{background:var(--cyan)}.card.c-purple::after{background:var(--purple)}
+.card:hover{border-color:rgba(0,255,136,.35)}
+.card-num{font-size:34px;font-weight:700;line-height:1;color:var(--bright);margin-bottom:5px;transition:color .5s}
+.card.c-red   .card-num{color:var(--red);text-shadow:var(--glow-r)}
+.card.c-red.has-alerts .card-num{animation:alertpulse 2s infinite}
+@keyframes alertpulse{0%,100%{text-shadow:var(--glow-r)}50%{text-shadow:0 0 30px rgba(255,51,68,.9)}}
+.card.c-orange .card-num{color:var(--orange)}.card.c-yellow .card-num{color:var(--yellow)}
+.card.c-green  .card-num{color:var(--green);text-shadow:var(--glow-g)}
+.card.c-cyan   .card-num{color:var(--cyan);text-shadow:var(--glow-c)}
+.card.c-purple .card-num{color:var(--purple)}
+.card-label{font-size:9px;letter-spacing:2px;color:var(--text);text-transform:uppercase}
+.card-sub{font-size:9px;color:var(--text);opacity:.5;margin-top:2px}
+.sparkline{display:block;width:100%;margin-top:8px;opacity:.8}
+
+/* ── LAYOUT ── */
+.main-grid{display:grid;grid-template-columns:230px 1fr 205px;gap:8px;margin-bottom:8px}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.events-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.right-col{display:flex;flex-direction:column;gap:8px}
+
+/* ── PANELS ── */
+.panel{background:var(--bg2);border:1px solid var(--border);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--border);background:rgba(0,255,136,.035);cursor:default}
+.pt{font-size:9px;font-weight:700;letter-spacing:2.5px;color:var(--green);text-transform:uppercase}
+.pc{font-size:9px;color:var(--text);padding:1px 6px;border:1px solid var(--border);opacity:.8}
+.pb{padding:8px 10px;overflow-y:auto}
+
+/* ── SERVICES ── */
+.svc{display:flex;align-items:center;gap:7px;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.03);cursor:default}
+.svc:last-child{border-bottom:none}
+.si{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.si.running{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2.5s infinite}
+.si.exited{background:var(--red)}.si.paused{background:var(--yellow)}.si.created{background:var(--text);opacity:.5}
+.sn{flex:1;color:var(--text2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ss{font-size:9px;letter-spacing:1px;flex-shrink:0}
+
+/* ── ALERT FILTERS ── */
+.af-bar{display:flex;gap:2px}
+.af{background:none;border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 7px;cursor:pointer;transition:all .2s}
+.af:hover,.af.active{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.5);color:var(--bright)}
+.af[data-f="1"].active,.af[data-f="1"]:hover{background:rgba(255,51,68,.1);border-color:rgba(255,51,68,.5)}
+.af[data-f="2"].active,.af[data-f="2"]:hover{background:rgba(255,136,17,.1);border-color:rgba(255,136,17,.5)}
+.af[data-f="3"].active,.af[data-f="3"]:hover{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.4)}
+#view-toggle{background:none;border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text);padding:2px 7px;cursor:pointer;letter-spacing:1px;transition:all .2s}
+#view-toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ── GROUPED ALERTS ── */
+.ag{padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);position:relative;animation:fadein .25s ease;cursor:default}
+@keyframes fadein{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
+.ag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.ag.s1::before{background:var(--red)}.ag.s2::before{background:var(--orange)}.ag.s3::before{background:var(--yellow)}
+.ag:last-child{border-bottom:none}
+.ag-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.ag-sig{flex:1;color:var(--text2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-count{color:var(--bright);font-size:11px;font-weight:700;flex-shrink:0;opacity:.9}
+.ag-meta{display:flex;gap:8px;font-size:9px;color:var(--text);flex-wrap:wrap;margin-bottom:4px}
+.ag-src-int{color:var(--yellow)}.ag-src-ext{color:rgba(255,51,68,.8)}.ag-proto{opacity:.4}
+.ag-bar-wrap{background:rgba(255,255,255,.04);height:2px;border-radius:1px;overflow:hidden}
+.ag-bar{height:2px;border-radius:1px;transition:width .9s ease}
+.ai{padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);position:relative;animation:fadein .3s ease}
+.ai::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.ai.s1::before{background:var(--red)}.ai.s2::before{background:var(--orange)}.ai.s3::before{background:var(--yellow)}
+.ai:last-child{border-bottom:none}
+.asig{color:var(--text2);font-size:11px;margin-bottom:4px;line-height:1.4}
+.ameta{display:flex;flex-wrap:wrap;gap:10px;font-size:9px;color:var(--text)}
+.badge{display:inline-block;padding:1px 5px;font-size:8px;font-weight:700;letter-spacing:1px;border:1px solid;margin-right:5px;vertical-align:middle}
+.bp1{color:var(--red);border-color:var(--red)}.bp2{color:var(--orange);border-color:var(--orange)}.bp3{color:var(--yellow);border-color:var(--yellow)}
+.ats{opacity:.45}
+
+/* ── LAUNCHPAD ── */
+.lg{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px}
+.lb{display:block;padding:7px 4px;text-align:center;text-decoration:none;border:1px solid var(--border2);color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;transition:all .2s;background:rgba(0,212,255,.025)}
+.lb:hover{background:rgba(0,212,255,.1);border-color:var(--cyan);box-shadow:var(--glow-c);color:var(--bright)}
+.lb.lb-claude{border-color:rgba(168,85,247,.4);color:var(--purple);background:rgba(168,85,247,.06)}
+.lb.lb-claude:hover{background:rgba(168,85,247,.18);border-color:var(--purple);box-shadow:0 0 12px rgba(168,85,247,.35);color:var(--bright)}
+
+/* ── SYSTEM HEALTH ── */
+.sys-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.sys-l{font-size:9px;color:var(--text);letter-spacing:1px;width:28px;flex-shrink:0}
+.sys-bar-wrap{flex:1;background:rgba(255,255,255,.06);height:5px;border-radius:2px;overflow:hidden}
+.sys-bar{height:5px;border-radius:2px;transition:width 1.1s ease}
+.sys-v{font-size:9px;width:34px;text-align:right;flex-shrink:0}
+.sys-sub{font-size:9px;color:var(--text);opacity:.55;padding:5px 0 2px;display:flex;justify-content:space-between}
+.sys-detail{font-size:8px;color:var(--text);opacity:.4;margin-top:1px}
+
+/* ── ALERT KEY ── */
+.key-row{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px;cursor:default}
+.key-row:last-child{border-bottom:none}
+.key-sev{font-weight:700;width:20px;flex-shrink:0}
+
+/* ── DNS PANEL ── */
+.dns-top{display:flex;gap:14px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)}
+.dns-donut-cvs{width:80px;height:80px;flex-shrink:0}
+.dns-stats{flex:1}
+.dns-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.dns-row:last-of-type{border-bottom:none}
+.dl{color:var(--text)}.dv{color:var(--bright)}
+.blk-item{display:flex;align-items:center;gap:7px;font-size:10px;padding:3px 0;color:var(--text)}
+.blk-dom{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px}
+.blk-bar-wrap{width:70px;flex-shrink:0;background:rgba(255,255,255,.05);height:4px;border-radius:2px;overflow:hidden}
+.blk-bar{height:4px;background:linear-gradient(90deg,var(--green-d),var(--green));border-radius:2px;box-shadow:0 0 4px rgba(0,255,136,.4);transition:width .9s ease}
+.blk-cnt{width:28px;text-align:right;color:var(--text);opacity:.45;font-size:9px;flex-shrink:0}
+
+/* ── DEVICES PANEL ── */
+.dev{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:10px;border-bottom:1px solid rgba(255,255,255,.03)}
+.dev:last-child{border-bottom:none}
+.dip{color:var(--cyan);width:100px;flex-shrink:0;font-size:10px}
+.dname{flex:1;color:var(--text2)}
+.dtag{font-size:8px;padding:1px 5px;border:1px solid;letter-spacing:1px}
+
+/* ── MISSION BOARD ── */
+.mission-section{margin-bottom:10px}
+.mission-title{font-size:8px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid rgba(0,212,255,.15)}
+.tip-box{margin-top:8px;padding:8px 10px;border:1px solid rgba(0,212,255,.2);background:rgba(0,212,255,.03)}
+.tip-label{font-size:8px;letter-spacing:2px;color:var(--cyan);margin-bottom:4px;text-transform:uppercase}
+.tip-text{font-size:10px;color:var(--text2);line-height:1.6}
+
+/* ── MISSION ITEMS (expandable + checkable) ── */
+.mi{border:1px solid rgba(255,255,255,.05);margin-bottom:4px;background:var(--bg3);transition:border-color .2s}
+.mi:hover{border-color:rgba(0,212,255,.2)}
+.mi.open{border-color:rgba(0,212,255,.3)}
+.mi-hd{display:flex;align-items:center;gap:7px;padding:7px 9px;cursor:pointer;user-select:none}
+.mi-cb{width:13px;height:13px;border:1px solid rgba(255,255,255,.18);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;cursor:pointer}
+.mi-cb:hover{border-color:var(--green)}
+.mi-cb.ck{background:var(--green);border-color:var(--green)}
+.mi-cb.ck::after{content:'✓';color:#000;font-size:8px;font-weight:900;position:absolute}
+.mi-lbl{flex:1;font-size:10px;color:var(--text2);line-height:1.4}
+.mi.checked .mi-lbl{color:var(--text);opacity:.4;text-decoration:line-through}
+.mi-caret{font-size:8px;color:var(--text);opacity:.35;transition:transform .2s;flex-shrink:0}
+.mi.open .mi-caret{transform:rotate(90deg);opacity:.7;color:var(--cyan)}
+.mi-body{display:none;padding:0 10px 10px 29px;font-size:10px;color:var(--text);line-height:1.7;border-top:1px solid rgba(255,255,255,.04)}
+.mi.open .mi-body{display:block}
+.mi-steps{margin-top:7px;padding:7px 10px;background:rgba(0,212,255,.04);border-left:2px solid rgba(0,212,255,.25)}
+.mi-steps-lbl{font-size:8px;letter-spacing:2px;color:var(--cyan);margin-bottom:5px;text-transform:uppercase}
+.mi-step{padding:2px 0;color:var(--text2);font-size:9px;line-height:1.5}
+.mi-step::before{content:'→ ';color:var(--cyan);opacity:.55}
+.mi-badge-done{font-size:7px;padding:1px 5px;border:1px solid rgba(0,255,136,.35);color:var(--green);letter-spacing:1px;margin-left:6px;vertical-align:middle;display:inline-block}
+.mi-badge-active{font-size:7px;padding:1px 5px;border:1px solid rgba(0,212,255,.4);color:var(--cyan);letter-spacing:1px;margin-left:6px;vertical-align:middle;display:inline-block}
+
+/* ── NETWORK MAP ── */
+#net-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:6px;padding:10px 10px 6px}
+.net-group-label{grid-column:1/-1;font-size:8px;letter-spacing:2px;color:var(--text);opacity:.5;text-transform:uppercase;padding:4px 0 2px;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:2px}
+.nd{background:var(--bg3);border:1px solid rgba(255,255,255,.07);padding:9px 11px 8px;cursor:pointer;transition:border-color .2s,background .2s;position:relative;overflow:hidden}
+.nd::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.nd.active{border-color:rgba(0,255,136,.3)}.nd.active::after{background:var(--green)}
+.nd.present{border-color:rgba(0,212,255,.2)}.nd.present::after{background:var(--cyan)}
+.nd.offline{border-color:rgba(255,255,255,.04);opacity:.5}.nd.offline::after{background:rgba(255,255,255,.08)}
+.nd:hover{border-color:rgba(0,212,255,.5)!important;background:rgba(0,212,255,.05)}
+.nd-head{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.nd-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.nd.active .nd-dot{background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite}
+.nd.present .nd-dot{background:var(--cyan);opacity:.7}
+.nd.offline .nd-dot{background:rgba(255,255,255,.2)}
+.nd-name{flex:1;font-size:10px;color:var(--text2);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.5px}
+.nd-tag{font-size:7px;padding:1px 4px;border:1px solid;letter-spacing:1px;flex-shrink:0}
+.nd-ip{font-size:9px;color:var(--cyan);margin-bottom:5px;opacity:.7}
+.nd-stats{display:flex;gap:8px;font-size:9px;color:var(--text);margin-bottom:4px}
+.nd-bar-bg{background:rgba(255,255,255,.05);height:3px;border-radius:1px;overflow:hidden;margin-bottom:5px}
+.nd-bar-fg{height:3px;border-radius:1px;transition:width .8s ease}
+.nd-foot{display:flex;justify-content:space-between;align-items:center;font-size:8px;color:var(--text);opacity:.6}
+.nd-issue{color:var(--orange);font-size:8px;letter-spacing:.5px}
+.net-unknown{margin:6px 10px 8px;padding:8px 10px;border:1px solid rgba(255,136,17,.2);background:rgba(255,136,17,.04)}
+.unk-title{font-size:8px;letter-spacing:2px;color:var(--orange);margin-bottom:6px;text-transform:uppercase}
+.unk-list{display:flex;flex-wrap:wrap;gap:5px}
+.unk-pill{padding:2px 8px;border:1px solid rgba(255,136,17,.3);font-size:8px;letter-spacing:.5px;cursor:pointer;transition:border-color .2s;color:var(--text2)}
+.unk-pill:hover{border-color:var(--orange);color:var(--orange)}
+
+/* ── EVENTS ── */
+.ev{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);animation:fadein .3s ease}
+.ev:last-child{border-bottom:none}
+.ev-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.ev.critical .ev-dot{background:var(--red);box-shadow:0 0 5px var(--red);animation:pulse 1.5s infinite}
+.ev.warn .ev-dot{background:var(--orange)}.ev.info .ev-dot{background:var(--cyan)}
+.ev-msg{flex:1;font-size:10px;color:var(--text2);line-height:1.4}
+.ev-ts{font-size:8px;color:var(--text);opacity:.4;flex-shrink:0;margin-top:2px}
+.no-events{color:var(--green);padding:20px;text-align:center;font-size:11px;text-shadow:var(--glow-g)}
+
+/* ── TOP TALKERS ── */
+.tk{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px}
+.tk:last-child{border-bottom:none}
+.tk-rank{color:var(--text);opacity:.4;width:14px;flex-shrink:0;font-size:9px}
+.tk-name{width:110px;flex-shrink:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk-bar-wrap{flex:1;background:rgba(255,255,255,.05);height:5px;border-radius:2px;overflow:hidden}
+.tk-bar{height:5px;border-radius:2px;background:linear-gradient(90deg,var(--cyan),rgba(0,212,255,.5));transition:width 1s ease}
+.tk-bytes{font-size:9px;color:var(--text);opacity:.6;width:52px;text-align:right;flex-shrink:0}
+
+/* ── DRAWER ── */
+#drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000}
+#drawer-panel{position:fixed;top:0;right:0;bottom:0;width:370px;background:var(--bg2);border-left:1px solid var(--border);z-index:2001;padding:16px;display:flex;flex-direction:column;animation:slideIn .2s ease}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+#drawer-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:4px}
+#drawer-close{background:none;border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:3px 8px;cursor:pointer;transition:all .2s;flex-shrink:0}
+#drawer-close:hover{border-color:var(--red);color:var(--red)}
+.nq{display:flex;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:10px}
+.nq:last-child{border-bottom:none}
+.nq-ts{color:var(--text);opacity:.5;flex-shrink:0;font-size:9px;width:60px}
+.nq-dom{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nq.allowed .nq-dom{color:var(--text2)}.nq.blocked .nq-dom{color:var(--red);opacity:.8}.nq.nxdomain .nq-dom{color:var(--orange)}
+.nq-badge{font-size:7px;padding:1px 4px;border:1px solid;letter-spacing:.5px;flex-shrink:0}
+.nq.blocked .nq-badge{color:var(--red);border-color:var(--red)}.nq.nxdomain .nq-badge{color:var(--orange);border-color:var(--orange)}.nq.allowed .nq-badge{display:none}
+
+/* ── CLAUDE SIDE PANEL ── */
+#claude-modal{display:none;position:fixed;inset:0;z-index:3000}
+#claude-ov{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+#claude-pnl{position:absolute;right:0;top:0;bottom:0;width:440px;background:var(--bg2);border-left:1px solid rgba(168,85,247,.35);display:flex;flex-direction:column;animation:slideIn .2s ease}
+.cl-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:rgba(168,85,247,.04)}
+.cl-title{font-size:10px;font-weight:700;color:var(--purple);letter-spacing:3px;text-transform:uppercase}
+.cl-close{background:none;border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:3px 8px;cursor:pointer;transition:all .2s}
+.cl-close:hover{border-color:var(--red);color:var(--red)}
+.cl-ctx{padding:7px 16px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:9px;color:var(--text);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cl-ctx label{cursor:pointer;display:flex;align-items:center;gap:4px;letter-spacing:.5px}
+.cl-ctx input[type=checkbox]{accent-color:var(--purple);cursor:pointer}
+.cl-qps{display:flex;gap:4px;flex-wrap:wrap;padding:7px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cl-qp{background:none;border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.5px;padding:2px 7px;cursor:pointer;transition:all .2s}
+.cl-qp:hover{border-color:rgba(168,85,247,.5);color:var(--purple)}
+.cl-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.cl-msg{padding:9px 12px;font-size:11px;line-height:1.65;max-width:95%;white-space:pre-wrap;word-break:break-word}
+.cl-msg.user{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);align-self:flex-end;color:var(--bright)}
+.cl-msg.asst{background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.12);align-self:flex-start;color:var(--text2)}
+.cl-msg.err{background:rgba(255,51,68,.05);border:1px solid rgba(255,51,68,.2);color:var(--red);font-size:10px}
+.cl-msg.thinking{color:var(--text);opacity:.45;font-style:italic;font-size:10px;border:none;padding:4px 0}
+.cl-ia{padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:flex-end}
+#claude-inp{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--bright);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 10px;outline:none;resize:none;height:68px;line-height:1.5}
+#claude-inp:focus{border-color:rgba(168,85,247,.5)}
+#claude-btn{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.4);color:var(--purple);font-family:inherit;font-size:10px;letter-spacing:1px;padding:8px 14px;cursor:pointer;transition:all .2s;white-space:nowrap;align-self:flex-end}
+#claude-btn:hover:not(:disabled){background:rgba(168,85,247,.28)}
+#claude-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ── SSH EVENTS ── */
+.ssh-ev{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px}
+.ssh-ev:last-child{border-bottom:none}
+.ssh-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.ssh-ev.success .ssh-dot{background:var(--green);box-shadow:0 0 5px var(--green)}
+.ssh-ev.failure .ssh-dot,.ssh-ev.invalid .ssh-dot{background:var(--red)}
+.ssh-ev.preauth .ssh-dot{background:var(--orange)}
+.ssh-ev.disconnect .ssh-dot{background:var(--text);opacity:.4}
+.ssh-msg{flex:1;color:var(--text2);line-height:1.4}
+.ssh-ev.failure .ssh-msg,.ssh-ev.invalid .ssh-msg{color:rgba(255,51,68,.85)}
+.ssh-ev.preauth .ssh-msg{color:var(--orange);opacity:.8}
+.ssh-ts{font-size:8px;color:var(--text);opacity:.4;flex-shrink:0;margin-top:2px}
+.ssh-stat-row{display:flex;gap:14px;padding:5px 0 8px;border-bottom:1px solid rgba(255,255,255,.05);margin-bottom:5px;font-size:10px}
+.ssh-stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.ssh-stat-n{font-size:18px;font-weight:700;line-height:1}
+.ssh-stat-l{font-size:8px;letter-spacing:1px;color:var(--text);text-transform:uppercase;opacity:.6}
+.ssh-brute{margin-bottom:6px;padding:5px 8px;background:rgba(255,51,68,.05);border-left:2px solid rgba(255,51,68,.4);font-size:9px;color:var(--red)}
+
+/* ── FLOATING CLAUDE BUTTON ── */
+#claude-fab{position:fixed;bottom:24px;right:24px;width:50px;height:50px;border-radius:50%;background:rgba(168,85,247,.14);border:1px solid rgba(168,85,247,.55);color:var(--purple);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1990;transition:all .25s;box-shadow:0 0 20px rgba(168,85,247,.18);text-shadow:0 0 10px rgba(168,85,247,.5)}
+#claude-fab:hover{background:rgba(168,85,247,.32);box-shadow:0 0 32px rgba(168,85,247,.45);transform:scale(1.12)}
+#claude-fab-label{position:fixed;bottom:80px;right:20px;font-size:8px;letter-spacing:2px;color:var(--purple);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;text-transform:uppercase}
+#claude-fab:hover+#claude-fab-label{opacity:.7}
+
+/* ── TOOLTIP ── */
+#tip{position:fixed;z-index:9990;max-width:310px;background:var(--bg3);border:1px solid rgba(0,212,255,.3);padding:11px 14px;pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 4px 24px rgba(0,0,0,.65);display:none}
+#tip.show{opacity:1}
+.tip-t{font-size:10px;font-weight:700;color:var(--bright);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.07)}
+.tip-d{font-size:10px;color:var(--text2);line-height:1.65}
+.tip-r{margin-top:9px;padding:7px 9px;background:rgba(255,136,17,.06);border-left:2px solid rgba(255,136,17,.5)}
+.tip-rl{font-size:8px;letter-spacing:2px;color:var(--orange);margin-bottom:3px;text-transform:uppercase}
+.tip-rt{font-size:10px;color:var(--text2);line-height:1.6}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:20px;right:20px;background:var(--bg2);border:1px solid var(--red);padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--red);z-index:9999;opacity:0;transform:translateX(16px);transition:opacity .3s,transform .3s;box-shadow:0 0 20px rgba(255,51,68,.25)}
+.toast.show{opacity:1;transform:translateX(0)}
+
+/* ── UTILITY ── */
+.loading{color:var(--text);opacity:.5;padding:16px;text-align:center;font-size:11px}
+.err{color:var(--red);font-size:10px;padding:8px 14px;opacity:.8}
+.no-alerts{color:var(--green);padding:20px;text-align:center;font-size:11px;text-shadow:var(--glow-g)}
+.footer{display:flex;justify-content:space-between;font-size:9px;color:var(--text);margin-top:6px;padding:0 2px;opacity:.5}
+.blink{animation:blinker 1s step-start infinite}
+@keyframes blinker{50%{opacity:0}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<canvas id="mc"></canvas>
+<div class="page">
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="logo-title">Homelab OPS Center</div>
+    <div class="logo-sub">Security Intelligence &amp; Operations &nbsp;·&nbsp; ops.homelab.dev</div>
+  </div>
+  <div class="hdr-right">
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="dateline" id="dateline">ET</div>
+    <div class="api-pills">
+      <span class="pill" id="pill-live"><span class="dot live"></span>LIVE</span>
+      <span class="pill" id="pill-suri"><span class="dot live"></span>SURICATA</span>
+      <span class="pill" id="pill-dock"><span class="dot live"></span>DOCKER</span>
+      <span class="pill" id="pill-dns"><span class="dot live"></span>PIHOLE</span>
+      <span class="pill" id="pill-sys"><span class="dot live"></span>SYS</span>
+      <span class="pill" style="opacity:.5">↻ <span id="cdtxt">30</span>s</span>
+    </div>
+  </div>
+</header>
+
+<!-- STAT CARDS (6) -->
+<div class="cards">
+  <div class="card c-red" id="card-p1"
+    data-tip-t="P1 CRITICAL ALERTS"
+    data-tip-d="High-confidence active exploitation, malware C2, or known-bad traffic pattern. Suricata priority 1 from ET MALWARE, ET TROJAN, and ET ATTACK_RESPONSE rule categories."
+    data-tip-r="Open EveBox → identify source IP → if internal, isolate host immediately; if external, block in NPM or iptables. Check for lateral movement to other LAN hosts.">
+    <div class="card-num" id="n-p1">—</div>
+    <div class="card-label">P1 Critical</div>
+    <div class="card-sub">last 24 h</div>
+    <canvas id="spark-p1" class="sparkline" height="24"></canvas>
+  </div>
+  <div class="card c-orange" id="card-p2"
+    data-tip-t="P2 MEDIUM ALERTS"
+    data-tip-d="Port scanning, suspicious traffic, policy violations, or possible lateral movement. Suricata priority 2 — includes ET SCAN, ET POLICY, and potential C2 beaconing patterns."
+    data-tip-r="Review within the hour. Check source IP in Network Map — is it a known device? Look for beaconing (regular interval, low jitter = malware). Suppress if confirmed benign.">
+    <div class="card-num" id="n-p2">—</div>
+    <div class="card-label">P2 Medium</div>
+    <div class="card-sub">last 24 h</div>
+    <canvas id="spark-p2" class="sparkline" height="24"></canvas>
+  </div>
+  <div class="card c-yellow" id="card-p3"
+    data-tip-t="P3 LOW ALERTS"
+    data-tip-d="Informational or low-confidence alerts — minor policy violations, low-risk probes, or environmental noise that passed the suppression filter in threshold.conf."
+    data-tip-r="Review during daily check-in. If consistently benign (same sig, same source), add a suppress block in /opt/homelab/suricata/config/threshold.conf — note: no inline comments allowed.">
+    <div class="card-num" id="n-p3">—</div>
+    <div class="card-label">P3 Low</div>
+    <div class="card-sub">last 24 h</div>
+    <canvas id="spark-p3" class="sparkline" height="24"></canvas>
+  </div>
+  <div class="card c-green" id="card-svc"
+    data-tip-t="DOCKER SERVICES UP"
+    data-tip-d="Count of Docker containers in 'running' state out of all containers defined in docker-compose.yml. A container with &lt;10 min uptime (shown in red in the Services panel) likely just crashed or was restarted."
+    data-tip-r="Check logs: docker logs &lt;name&gt; | tail -50. Use Portainer to investigate restart loops. Common fix: correct config file then docker compose restart &lt;service&gt;.">
+    <div class="card-num" id="n-svc">—</div>
+    <div class="card-label">Services Up</div>
+    <div class="card-sub" id="svc-detail">containers</div>
+  </div>
+  <div class="card c-cyan" id="card-dns"
+    data-tip-t="DNS BLOCK RATE"
+    data-tip-d="Percentage of DNS queries blocked by Pi-hole across 282,108 known ad, tracker, and malware domains. Normal range is 5–30% depending on device activity. Higher isn't always better — investigate sudden spikes."
+    data-tip-r="If NXDOMAIN spikes: may indicate malware trying dead C2 domains. Open Pi-hole Query Log to identify source device and domain pattern. Check if the device appears in Notable Events.">
+    <div class="card-num" id="n-dns">—</div>
+    <div class="card-label">DNS Blocked</div>
+    <div class="card-sub">% of queries</div>
+  </div>
+  <div class="card c-purple" id="card-cert"
+    data-tip-t="SSL CERTIFICATE EXPIRY"
+    data-tip-d="Days until the *.homelab.dev wildcard SSL cert expires (NPM cert id=4, Let's Encrypt). NPM auto-renews 30 days before expiry when ports 80/443 are reachable from the internet."
+    data-tip-r="If near expiry or renewal failing: log into npm.homelab.dev → SSL Certificates → find *.homelab.dev → click Renew. Ensure ports 80/443 are open to WAN on the router.">
+    <div class="card-num" id="n-cert">—</div>
+    <div class="card-label">SSL Cert Days</div>
+    <div class="card-sub" id="cert-domain">*.homelab.dev</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="DOCKER SERVICES"
+      data-tip-d="Live container status from Docker socket. Green pulse = running. Red dot = exited or crashed. Uptime in red means restarted in the last 10 minutes — possible crash loop. Hover each service for details.">
+      <span class="pt">// Services</span><span class="pc" id="svc-count">—</span>
+    </div>
+    <div class="pb" id="svc-list" style="max-height:430px"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+
+  <div class="panel" style="display:flex;flex-direction:column">
+    <div class="ph"
+      data-tip-t="SURICATA THREAT FEED"
+      data-tip-d="Real-time IDS alerts parsed from eve.json. 24-hour window. GROUPED deduplicates by signature and shows total count. RAW shows individual events. Yellow src IP = internal LAN. Red = external/internet.">
+      <span class="pt">// Threat Feed</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="af-bar">
+          <button class="af active" data-f="all">ALL</button>
+          <button class="af" data-f="1">P1</button>
+          <button class="af" data-f="2">P2</button>
+          <button class="af" data-f="3">P3</button>
+        </div>
+        <button id="view-toggle">⊞ GRP</button>
+        <span class="pc" id="alert-count">24h</span>
+      </div>
+    </div>
+    <canvas id="timeline" style="width:100%;height:7px;display:block;flex-shrink:0"></canvas>
+    <div id="alert-list" style="max-height:393px;overflow-y:auto;flex:1">
+      <div class="loading">loading<span class="blink">_</span></div>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div class="panel">
+      <div class="ph"
+        data-tip-t="LAUNCHPAD"
+        data-tip-d="Quick links to all Homelab services. All routed through NPM (nginx-proxy-manager) on *.homelab.dev with wildcard SSL. CLAUDE AI opens the built-in assistant panel.">
+        <span class="pt">// Launchpad</span>
+      </div>
+      <div class="lg">
+        <a href="https://grafana.homelab.dev"                     target="_blank" class="lb"
+          data-tip-t="GRAFANA" data-tip-d="Dashboards, metrics, and alert rules. Contains: Suricata IDS dashboard and Server Security dashboard. Alerts fire to ntfy via the grafana-ntfy bridge.">GRAFANA</a>
+        <a href="https://pihole.homelab.dev"                      target="_blank" class="lb"
+          data-tip-t="PI-HOLE" data-tip-d="DNS filtering admin UI. View query log, blocked domains, per-client stats, and manage blocklists. Uses 282,108-domain combined blocklist.">PI-HOLE</a>
+        <a href="https://evebox.homelab.dev"                      target="_blank" class="lb"
+          data-tip-t="EVEBOX" data-tip-d="Suricata alert browser. Deep-dive into individual events: full packet metadata, flow data, source/dest context. Best tool for P1 alert triage.">EVEBOX</a>
+        <a href="https://portainer.homelab.dev"                   target="_blank" class="lb"
+          data-tip-t="PORTAINER" data-tip-d="Docker container management. View logs, restart containers, inspect volumes. Note: stacks were lost during migration — need to be re-imported via UI.">PORTAINER</a>
+        <a href="https://uptime.homelab.dev"                      target="_blank" class="lb"
+          data-tip-t="UPTIME KUMA" data-tip-d="11 active service monitors. Threshold: 30 retries before ntfy fires (roughly 30 minutes). Monitors include NPM, Grafana, Loki, Pi-hole, EveBox, Portainer, and more.">UPTIME</a>
+        <a href="https://ntopng.homelab.dev"                      target="_blank" class="lb"
+          data-tip-t="NTOPNG" data-tip-d="Network traffic analysis. Top talkers, flow inspection, protocol breakdown, and historical traffic data. Runs in host network mode for full interface visibility.">NTOPNG</a>
+        <a href="https://netdata.homelab.dev"                     target="_blank" class="lb"
+          data-tip-t="NETDATA" data-tip-d="Detailed real-time system metrics: per-CPU core, per-disk, NIC stats, Docker container metrics. More granular than the System panel on this page.">NETDATA</a>
+        <a href="https://npm.homelab.dev"                         target="_blank" class="lb"
+          data-tip-t="NPM — NGINX PROXY MANAGER" data-tip-d="The sole external entry point for all homelab.dev services. Manages wildcard SSL cert (id=4, expires 2026-08-01). All reverse proxy rules live here.">NPM</a>
+        <a href="https://grafana.homelab.dev/d/suricata-homelab" target="_blank" class="lb"
+          data-tip-t="SURICATA IDS DASHBOARD" data-tip-d="Grafana dashboard: alert trends over time, top triggered signatures, top source IPs, protocol breakdown. UID: suricata-homelab. Best for pattern analysis.">IDS DASH</a>
+        <a href="https://grafana.homelab.dev/d/homelab-security" target="_blank" class="lb"
+          data-tip-t="SERVER SECURITY DASHBOARD" data-tip-d="Grafana dashboard: SSH login events, sudo usage, failed auth attempts, syslog errors. UID: homelab-security. Powered by Loki log queries.">SEC DASH</a>
+        <button class="lb lb-claude" id="claude-open-btn"
+          data-tip-t="CLAUDE AI ASSISTANT" data-tip-d="Built-in AI assistant with homelab context. Knows your current alert counts, running services, and open security TODOs. Ask anything — alerts, configs, concepts, commands.">⬡ CLAUDE AI</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"
+        data-tip-t="SYSTEM HEALTH"
+        data-tip-d="Live bare-metal stats via psutil from homelab (YOUR_SERVER_IP). Bars turn orange at 70%, red at 80-85%. Load average: 1.0 per CPU core = 100% utilization. LOAD shows 1-min and 5-min averages.">
+        <span class="pt">// System</span><span class="pc" id="sys-uptime">—</span>
+      </div>
+      <div class="pb" id="sys-panel"><div class="loading">loading<span class="blink">_</span></div></div>
+    </div>
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;min-height:0">
+      <div class="ph" style="background:rgba(168,85,247,.06);border-bottom-color:rgba(168,85,247,.25)">
+        <span class="pt" style="color:var(--purple);letter-spacing:3px">⬡ Claude AI</span>
+        <span class="pc" style="color:var(--purple);opacity:.6;font-size:8px">Enter=send · Shift+Enter=↵</span>
+      </div>
+      <div class="cl-qps" style="padding:5px 8px;border-bottom:1px solid var(--border)">
+        <button class="cl-qp cli-qp" data-qp="What should I check first today based on current alerts?">Status check</button>
+        <button class="cl-qp cli-qp" data-qp="Explain this Suricata alert: ">Explain alert</button>
+        <button class="cl-qp cli-qp" data-qp="What should I work on next in my homelab?">Next TODO</button>
+      </div>
+      <div id="cl-inline-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:7px;min-height:0">
+        <div class="cl-msg asst" style="font-size:10px;align-self:flex-start">Hi — ask me about alerts, configs, or anything in your homelab. I know your full stack.</div>
+      </div>
+      <div style="padding:6px 8px;border-top:1px solid rgba(168,85,247,.2);display:flex;gap:5px;align-items:flex-end;flex-shrink:0">
+        <textarea id="cl-inline-inp" placeholder="Ask about an alert, config, concept…" style="flex:1;background:var(--bg3);border:1px solid rgba(168,85,247,.3);color:var(--bright);font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 8px;resize:none;height:50px;outline:none;line-height:1.4"></textarea>
+        <button id="cl-inline-btn" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.5);color:var(--purple);font-family:inherit;font-size:9px;letter-spacing:1px;padding:6px 10px;cursor:pointer;white-space:nowrap;align-self:flex-end;transition:all .2s">SEND</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM GRID -->
+<div class="bottom-grid">
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="PI-HOLE DNS STATS"
+      data-tip-d="24-hour DNS filtering statistics. Pi-hole intercepts queries matching 282,108 blocked domains (ads, trackers, malware, phishing). NXDOMAIN = domain doesn't exist — spikes may indicate malware C2 probes. Top Blocked shows highest-volume blocked domains.">
+      <span class="pt">// DNS / Pi-hole</span><span class="pc">282,108 domains</span>
+    </div>
+    <div class="pb" id="dns-panel"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="LAN DEVICE STATUS"
+      data-tip-d="Active/idle/offline status for all 30+ known LAN devices. Active = traffic in last 10 min (ARP + DNS/flow). Present = in ARP cache but quiet (sleeping/idle). Offline = no ARP + no recent traffic. Click any device in the Network Map for its DNS log.">
+      <span class="pt">// LAN Devices</span><span class="pc" id="dev-count">—</span>
+    </div>
+    <div class="pb" id="dev-list" style="max-height:260px"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="MISSION BOARD"
+      data-tip-d="Personal tracking board for certs, goals, and lab objectives. Click any item to expand. Check the box to mark complete — state saved in your browser. Add items via MISSIONS in static/index.html.">
+      <span class="pt">// Mission Board</span><span class="pc">click to expand</span>
+    </div>
+    <div class="pb" id="mission-panel" style="max-height:360px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- NETWORK MAP -->
+<div class="panel" style="margin-bottom:8px">
+  <div class="ph"
+    data-tip-t="NETWORK MAP"
+    data-tip-d="All 30+ LAN devices grouped by category. Status from ARP table + DNS/Suricata flow activity in last 10 min. Active = green pulse. Present (in ARP, no traffic) = cyan. Offline = dim. Red ✗ = blocked DNS. Orange ? = NXDOMAIN. Click any device to see its DNS query log.">
+    <span class="pt">// Network Map</span>
+    <span class="pc" id="net-summary">loading…</span>
+  </div>
+  <div id="net-grid"><div class="loading">loading<span class="blink">_</span></div></div>
+</div>
+
+<!-- EVENTS + TOP TALKERS -->
+<div class="events-grid">
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="NOTABLE EVENTS"
+      data-tip-d="Synthesized security events across all data sources: P1 Suricata alerts, P2 surges, unknown devices on LAN, recently restarted containers. Critical (red) = act now. Warn (orange) = review soon. Info (cyan) = awareness only.">
+      <span class="pt">// Notable Events</span><span class="pc" id="ev-count">—</span>
+    </div>
+    <div class="pb" id="ev-list" style="max-height:220px"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="TOP TALKERS"
+      data-tip-d="Devices generating the most network traffic in the last hour, measured in bytes from Suricata flow events (src IP on 192.168.1.0/24). Unexpected high-traffic devices may indicate malware exfiltration, misconfigured apps, or a torrent client.">
+      <span class="pt">// Top Talkers</span><span class="pc">last 1 h · bytes</span>
+    </div>
+    <div class="pb" id="tk-list" style="max-height:220px"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="ph"
+      data-tip-t="SSH EVENTS"
+      data-tip-d="SSH login activity parsed from auth.log — last 24 hours. Shows successful logins, failed password attempts, invalid usernames, and preauth disconnects. Red dot = failed or suspicious. Green = successful login."
+      data-tip-r="Multiple failures from same IP in short window = brute force. If external IP: check fail2ban status and consider hardening (disable password auth, use keys only). Unexpected logins: review wtmp with 'last' command.">
+      <span class="pt">// SSH Events</span><span class="pc" id="ssh-count">24 h</span>
+    </div>
+    <div class="pb" id="ssh-panel" style="max-height:220px;overflow-y:auto"><div class="loading">loading<span class="blink">_</span></div></div>
+  </div>
+</div>
+
+<!-- DEVICE DRAWER -->
+<div id="drawer" style="display:none">
+  <div id="drawer-overlay"></div>
+  <div id="drawer-panel">
+    <div id="drawer-header">
+      <div>
+        <div id="drawer-title" style="font-size:13px;font-weight:700;color:var(--bright)"></div>
+        <div id="drawer-ip" style="font-size:10px;color:var(--cyan);margin-top:2px"></div>
+        <div id="drawer-stats" style="font-size:9px;color:var(--text);margin-top:4px;opacity:.7"></div>
+      </div>
+      <button id="drawer-close">✕ CLOSE</button>
+    </div>
+    <div style="font-size:8px;letter-spacing:2px;color:var(--text);margin:10px 0 6px;text-transform:uppercase;opacity:.6">DNS Query Log — last 60 min</div>
+    <div id="drawer-queries" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tip"></div>
+
+<!-- CLAUDE AI SIDE PANEL -->
+<div id="claude-modal">
+  <div id="claude-ov"></div>
+  <div id="claude-pnl">
+    <div class="cl-hdr">
+      <span class="cl-title">⬡ Claude AI — Homelab Assistant</span>
+      <button class="cl-close" id="claude-close">✕ CLOSE</button>
+    </div>
+    <div class="cl-ctx">
+      <label><input type="checkbox" id="claude-ctx-chk" checked> Include homelab context</label>
+      <span style="opacity:.35">Enter = send · Shift+Enter = newline</span>
+    </div>
+    <div class="cl-qps">
+      <button class="cl-qp" data-qp="Explain this Suricata alert: ">Explain alert</button>
+      <button class="cl-qp" data-qp="How do I fix: ">How to fix</button>
+      <button class="cl-qp" data-qp="What does this mean: ">What is</button>
+      <button class="cl-qp" data-qp="What are the remediation steps for: ">Remediation</button>
+      <button class="cl-qp" data-qp="Is this behavior normal or suspicious: ">Normal or suspicious?</button>
+    </div>
+    <div class="cl-msgs" id="claude-msgs">
+      <div class="cl-msg asst">Ready. Ask me about alerts, configs, security concepts, or commands — I have context about your homelab setup.</div>
+    </div>
+    <div class="cl-ia">
+      <textarea id="claude-inp" placeholder="Ask about an alert, how to configure something, what a term means..."></textarea>
+      <button id="claude-btn">SEND</button>
+    </div>
+  </div>
+</div>
+
+<button id="claude-fab" data-tip-t="CLAUDE AI ASSISTANT" data-tip-d="Built-in AI with full homelab context. Knows your current alert counts, running services, open security TODOs, and stack configuration." data-tip-r="Ask: 'Explain this alert: ET SCAN...' or 'How do I fix the DNS leak?' or 'What should I do first today?'">⬡</button>
+<div id="claude-fab-label">CLAUDE AI · Ctrl+K</div>
+
+<div class="footer">
+  <span>homelab-ops v3.3 &nbsp;·&nbsp; admin@yourdomain.com</span>
+  <span id="last-refresh" style="opacity:.4"></span>
+  <span><span class="blink">_</span>&nbsp;next refresh in <span id="cdtxt2">30</span>s</span>
+</div>
+</div><!-- /page -->
+
+<script>
+// ══ CONSTANTS ══
+const C={green:'#00ff88',cyan:'#00d4ff',red:'#ff3344',orange:'#ff8811',yellow:'#ffcc00',purple:'#a855f7',text:'rgba(255,255,255,.04)'};
+const TAG_COLORS={NET:'#00d4ff',SRV:'#00ff88',LAB:'#ff8811',PER:'#adc0d5',WORK:'#a855f7',IOT:'#6b7280'};
+const TAG_GROUPS={NET:'Infrastructure',SRV:'Infrastructure',LAB:'Security Lab',PER:'Personal',WORK:'Work',IOT:'IoT & Smart Home'};
+const GROUP_ORDER=['Infrastructure','Security Lab','Personal','Work','IoT & Smart Home'];
+
+const SVC_TIPS={
+  'nginx-proxy-manager':'Reverse proxy + SSL terminator. All external traffic enters on ports 80/443. Admin UI on port 81. Hosts all *.homelab.dev routing rules.',
+  'suricata':'Network IDS on eno1 via af-packet. Writes alerts to eve.json. Custom suppressions in threshold.conf. Never restart during an active incident.',
+  'evebox':'Suricata alert browser. Deep-dive into event details, flow data, and packet metadata. Best tool for P1 triage.',
+  'pihole':'DNS filtering on YOUR_SERVER_IP:53. Blocks 282K domains. Pi-hole FTL logs all queries — feeds the Network Map device view.',
+  'loki':'Log aggregation backend (port 3100). Receives logs from Promtail. Datasource uid: fflwiji7chc74b. Queries via Grafana.',
+  'promtail':'Log shipper agent. Tails syslog, auth.log, suricata logs → forwards to Loki on port 3100.',
+  'grafana':'Metrics dashboards and alerting (port 3003). Suricata IDS + Server Security dashboards. Alert folder: Homelab Alerts.',
+  'grafana-ntfy':'Custom webhook bridge: Grafana alerts → ntfy push notifications. Source: /opt/homelab/Homelab/security/bridge.py.',
+  'ntfy':'Push notification server (port 3004). Topic: homelab-alerts. Auth: your-user/your-password. NOTE: currently on HTTP — Basic Auth visible to Suricata.',
+  'ntopng':'Network traffic analysis. Top talkers, flow data, protocol breakdown. Runs in host network mode for full NIC visibility.',
+  'netdata':'Detailed system metrics: per-CPU, per-disk, NIC, Docker containers. More granular than the System panel here.',
+  'homepage':'Home dashboard at home.homelab.dev.',
+  'uptime-kuma':'11 active service monitors (maxretries=30, ~30 min). ntfy alert via container name ntfy:80.',
+  'kali':'Kali Linux desktop container for security testing. Isolated on kali-lab Docker network. Web UI at kali.homelab.dev.',
+  'watchtower':'Auto-updates Docker images. Check Portainer logs if unexpected container restarts occur after an update.',
+  'portainer':'Docker management UI (port 9443). NOTE: stacks were lost during migration and need re-import via the Portainer UI.',
+  'homelab-ops':'This OPS dashboard. FastAPI backend + static HTML frontend.',
+};
+
+// ══ MATRIX RAIN ══
+(function(){
+  const cv=document.getElementById('mc'),ctx=cv.getContext('2d');
+  let cols,drops;
+  const chars='01アイウエオカキクケコサシスセソ';
+  function init(){cv.width=window.innerWidth;cv.height=window.innerHeight;cols=Math.floor(cv.width/16);drops=Array(cols).fill(0).map(()=>Math.random()*cv.height/16|0)}
+  function frame(){ctx.fillStyle='rgba(6,10,18,0.05)';ctx.fillRect(0,0,cv.width,cv.height);ctx.fillStyle='#00ff88';ctx.font='13px JetBrains Mono';drops.forEach((y,i)=>{ctx.fillText(chars[Math.random()*chars.length|0],i*16,y*16);if(y*16>cv.height&&Math.random()>.975)drops[i]=0;drops[i]++})}
+  init();window.addEventListener('resize',init);setInterval(frame,80);
+})();
+
+// ══ CLOCK (Eastern Time) ══
+function updateClock(){
+  const n=new Date(),p=x=>String(x).padStart(2,'0');
+  document.getElementById('clock').textContent=`${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  const opts={weekday:'short',month:'short',day:'numeric',timeZone:'America/New_York'};
+  document.getElementById('dateline').textContent=n.toLocaleDateString('en-US',opts).toUpperCase()+' ET';
+}
+setInterval(updateClock,1000);updateClock();
+
+// ══ STATE ══
+const state={alertFilter:'all',alertView:'grouped',alertData:null,prevP1:-1,netData:null};
+
+// ══ HELPERS ══
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtTs(ts){
+  if(!ts)return'';
+  try{const d=new Date(ts),p=x=>String(x).padStart(2,'0');return`${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}
+  catch{return ts.slice(0,16)}
+}
+function fmtRel(epoch){
+  if(!epoch)return'never';
+  const s=Math.floor(Date.now()/1000)-epoch;
+  if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;
+  if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`;
+}
+function fmtBytes(b){
+  if(!b&&b!==0)return'—';const u=['B','K','M','G','T'];let i=0;
+  while(b>=1024&&i<u.length-1){b/=1024;i++;}return`${b.toFixed(i>0?1:0)}${u[i]}`;
+}
+function fmtUptime(startedAt,status){
+  if(status!=='running'||!startedAt)return status.toUpperCase();
+  try{const s=(Date.now()-new Date(startedAt).getTime())/1000;
+    if(s<600)return`<span style="color:#ff3344">!${Math.round(s/60)}m</span>`;
+    if(s<3600)return`${Math.round(s/60)}m`;if(s<86400)return`${Math.round(s/3600)}h`;return`${Math.floor(s/86400)}d`}
+  catch{return'UP'}
+}
+function setDot(id,ok){const el=document.getElementById(id);if(el)el.querySelector('.dot').className='dot '+(ok?'live':'dead')}
+function animNum(el,target){
+  const from=parseInt(el.textContent)||0;if(from===target){el.textContent=target;return}
+  const dur=600,start=performance.now();
+  const step=t=>{const p=Math.min((t-start)/dur,1),e=1-Math.pow(1-p,3);el.textContent=Math.round(from+(target-from)*e);if(p<1)requestAnimationFrame(step)};
+  requestAnimationFrame(step);
+}
+function badge(sev){
+  if(sev===1)return'<span class="badge bp1">P1</span>';
+  if(sev===2)return'<span class="badge bp2">P2</span>';
+  return'<span class="badge bp3">P3</span>';
+}
+function isInternal(ip){return/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.)/.test(ip||'')}
+
+function alertTip(sig,cat,sev){
+  const s=sig.toLowerCase(),c=(cat||'').toLowerCase();
+  let d='',r='';
+  if(c.includes('malware')||c.includes('trojan')||c.includes('attack_response')){
+    d=`High-confidence malware or C2 communication. Category: ${cat}. Matched against Emerging Threats known-bad signatures — low false-positive rate.`;
+    r='Immediate action: Open EveBox → find event → if internal src, isolate host via iptables or physical disconnect. Check for lateral movement to other YOUR_LAN_SUBNET.x hosts. Document timeline.';
+  }else if(c.includes('scan')){
+    d=`Port scan or network reconnaissance. Category: ${cat}. Rapid probing of multiple ports — indicative of Nmap, a vulnerability scanner, or malware mapping the network.`;
+    r='Check src IP in Network Map. If YOUR_KALI_IP: expected lab activity. If external: usually internet background noise. If unexpected internal device: investigate immediately.';
+  }else if(c.includes('policy')){
+    d=`Security policy violation. Category: ${cat}. Often cleartext protocols transmitting credentials (HTTP Basic Auth, FTP, Telnet) or software violating security best practices.`;
+    r='Identify source device. Known issue: ntfy runs on HTTP internally — Basic Auth is visible to Suricata. If from another device, find what app is sending cleartext credentials.';
+  }else if(c.includes('info')){
+    d=`Low-confidence informational alert. Category: ${cat}. Broad rule match — often benign (Tor exit node IPs, cloud provider ranges, known VPN endpoints, unusual but normal behavior).`;
+    r='Review src/dst IPs. If same sig fires repeatedly from the same source and is confirmed benign, add a suppress entry to /opt/homelab/suricata/config/threshold.conf, then reload-rules.';
+  }else if(c.includes('exploit')||c.includes('web_server')||c.includes('web_client')){
+    d=`Web exploit attempt. Category: ${cat}. Suricata detected an active attack pattern — SQL injection, XSS, path traversal, or browser exploit in HTTP traffic.`;
+    r='Check if NPM or an exposed service is being targeted. Block the attacking IP in NPM if external. If source is an internal device, investigate for malware or a compromised browser.';
+  }else if(c.includes('dns')){
+    d=`DNS anomaly. Category: ${cat}. Could be DNS tunneling (data exfil over DNS queries), DGA (malware domain generation), or an abnormal NXDOMAIN spike.`;
+    r='Click the source device in the Network Map for its DNS log. High NXDOMAIN = malware probing dead C2 domains. DNS tunneling = unusually long query strings to strange subdomains.';
+  }else{
+    d=`IDS alert (P${sev}). Category: ${cat}. Suricata matched an Emerging Threats rule for this traffic pattern.`;
+    r='Open EveBox for full packet metadata. Check src/dst against known devices in the Network Map. If P1 or P2 with an internal source, investigate before the 30-min refresh.';
+  }
+  if(s.includes('cleartext')||s.includes('basic auth')){
+    d='HTTP Basic Auth credentials detected in cleartext HTTP traffic. Unencrypted username:password was visible on the wire and caught by Suricata.';
+    r='Known issue: ntfy uses HTTP internally (open TODO). If from another device, identify the app sending cleartext credentials and enable TLS or switch protocol.';
+  }
+  if(s.includes('stun')){
+    d='STUN (Session Traversal Utilities for NAT) request — used by Tailscale for NAT traversal and peer-to-peer VPN connections. Expected from homelab.';
+    r='If consistently from homelab (YOUR_SERVER_IP): suppress sig_id 2016149/2016150 in threshold.conf. Reload: docker exec suricata suricatasc -c reload-rules';
+  }
+  if(s.includes('lldp')||s.includes('msrp')){
+    d='Link Layer Discovery Protocol (LLDP) or MSRP frame — network equipment advertisement broadcast from the TP-Link router or AP. Normal LAN noise.';
+    r='Suppress sig_id 2200121 in threshold.conf. No inline # comments allowed in threshold.conf. Reload: docker exec suricata suricatasc -c reload-rules';
+  }
+  if(s.includes('dhcp')&&(s.includes('kali')||s.includes('linux'))){
+    d='Kali Linux identified via DHCP hostname in a network broadcast. Suricata flagged the Kali-specific hostname from your lab machine (YOUR_KALI_IP).';
+    r='Expected behavior — your Kali VM uses the Kali hostname by default. Suppress sig_id 2022973 in threshold.conf if you want to silence it.';
+  }
+  if(s.includes('apt')||s.includes('debian')){
+    d='Package manager (apt/dpkg) update traffic detected — Kali or Debian system downloading updates. Suricata flagged the user-agent or package server.';
+    r='Expected from Kali (YOUR_KALI_IP). Suppress sig_id 2025627 in threshold.conf if consistently from Kali. Reload: docker exec suricata suricatasc -c reload-rules';
+  }
+  if(s.includes('c2')||s.includes('beacon')||s.includes('cnc')){
+    d='Command-and-Control (C2) beacon — malware calling home at regular intervals to receive commands. Highly suspicious pattern with very low false-positive rate.';
+    r='CRITICAL: Identify src IP → isolate device immediately (iptables -I INPUT -s <ip> -j DROP or physical disconnect) → scan for lateral movement → document → wipe/reimage if confirmed.';
+  }
+  if(s.includes('generate_204')||s.includes('connectivity')){
+    d='HTTP connectivity check (generate_204) — used by ntopng and other tools to test internet access by hitting a URL expected to return HTTP 204 No Content.';
+    r='If consistently from homelab: suppress sig_ids 2024897 and 2060251 in threshold.conf. Reload: docker exec suricata suricatasc -c reload-rules';
+  }
+  return{t:sig.slice(0,72),d,r};
+}
+
+// ══ CANVAS UTILS ══
+function drawSparkline(canvas,data,color){
+  if(!canvas||!data)return;const w=canvas.offsetWidth,h=canvas.offsetHeight;
+  if(!w||!h)return;canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d'),n=data.length,max=Math.max(...data,1),sw=w/n,bw=Math.max(1,Math.floor(sw*.7));
+  ctx.clearRect(0,0,w,h);
+  data.forEach((v,i)=>{const bh=v>0?Math.max(2,Math.round((v/max)*(h-1))):1;ctx.fillStyle=v>0?color:C.text;ctx.fillRect(Math.floor(i*sw+(sw-bw)/2),h-bh,bw,bh)});
+}
+function drawDonut(canvas,pct,color){
+  if(!canvas)return;const s=Math.min(canvas.offsetWidth,canvas.offsetHeight)||80;
+  canvas.width=s;canvas.height=s;const ctx=canvas.getContext('2d'),cx=s/2,cy=s/2,r=s/2-5,lw=7;
+  ctx.clearRect(0,0,s,s);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=lw;ctx.stroke();
+  if(pct>0){ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(pct/100)*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';ctx.shadowColor=color;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0}
+  ctx.fillStyle='#d0e4f0';ctx.font=`bold ${Math.floor(s*.18)}px JetBrains Mono`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pct.toFixed(1)+'%',cx,cy);
+}
+function drawTimeline(canvas,chart){
+  if(!canvas)return;const w=canvas.offsetWidth,h=canvas.offsetHeight||7;if(!w)return;
+  canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d'),n=24,cw=w/n;
+  const p1=chart.p1||Array(24).fill(0),p2=chart.p2||Array(24).fill(0),p3=chart.p3||Array(24).fill(0);
+  for(let i=0;i<n;i++){
+    let col=p1[i]>0?'rgba(255,51,68,.75)':p2[i]>0?'rgba(255,136,17,.65)':p3[i]>0?'rgba(255,204,0,.5)':'rgba(255,255,255,.04)';
+    ctx.fillStyle=col;const x=Math.floor(i*cw);ctx.fillRect(x,0,Math.ceil(cw)-1,h);
+  }
+}
+function redrawSparks(){
+  if(!state.alertData?.chart)return;const ch=state.alertData.chart;
+  drawSparkline(document.getElementById('spark-p1'),ch.p1,C.red);
+  drawSparkline(document.getElementById('spark-p2'),ch.p2,C.orange);
+  drawSparkline(document.getElementById('spark-p3'),ch.p3,C.yellow);
+  drawTimeline(document.getElementById('timeline'),ch);
+}
+window.addEventListener('resize',redrawSparks);
+
+// ══ TOAST ══
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),400)},5000);
+}
+
+// ══ ALERT RENDERING ══
+function setFilter(f){
+  state.alertFilter=f;
+  document.querySelectorAll('.af').forEach(b=>b.classList.toggle('active',b.dataset.f===f));
+  if(state.alertData)renderAlerts(state.alertData);
+}
+function toggleView(){
+  state.alertView=state.alertView==='grouped'?'raw':'grouped';
+  document.getElementById('view-toggle').textContent=state.alertView==='grouped'?'⊞ GRP':'☰ RAW';
+  if(state.alertData)renderAlerts(state.alertData);
+}
+function renderAlerts(data){
+  const list=document.getElementById('alert-list'),f=state.alertFilter;
+  drawTimeline(document.getElementById('timeline'),data.chart||{p1:[],p2:[],p3:[]});
+  if(state.alertView==='grouped'){
+    const groups=(data.groups||[]).filter(g=>f==='all'||String(g.severity)===f);
+    if(!groups.length){list.innerHTML=`<div class="no-alerts">✓ No${f==='all'?'':' P'+f} alerts in last 24 h</div>`;return}
+    const mx=Math.max(...groups.map(g=>g.count),1);
+    list.innerHTML=groups.map(g=>{
+      const fp=Math.round((g.count/mx)*100),bc=g.severity===1?C.red:g.severity===2?C.orange:C.yellow;
+      const srcs=g.src_ips.map(ip=>`<span class="${isInternal(ip)?'ag-src-int':'ag-src-ext'}">${esc(ip)}</span>`).join(' ');
+      const dest=(g.dest_ips[0]||'')+(g.last_port?':'+g.last_port:'');
+      const tp=alertTip(g.signature,g.category,g.severity);
+      return`<div class="ag s${g.severity}" data-tip-t="${esc(tp.t)}" data-tip-d="${esc(tp.d)}" data-tip-r="${esc(tp.r)}"><div class="ag-head">${badge(g.severity)}<span class="ag-sig" title="${esc(g.signature)}">${esc(g.signature)}</span><span class="ag-count">×${g.count}</span></div><div class="ag-meta">${srcs}${dest?`<span style="opacity:.4">→</span><span>${esc(dest)}</span>`:''}<span class="ats">${fmtTs(g.last_seen)}</span></div><div class="ag-bar-wrap"><div class="ag-bar" style="width:${fp}%;background:${bc}"></div></div></div>`;
+    }).join('');
+  }else{
+    const evs=(data.events||[]).filter(e=>f==='all'||String(e.severity)===f);
+    if(!evs.length){list.innerHTML='<div class="no-alerts">✓ No matching alerts</div>';return}
+    list.innerHTML=evs.map(a=>{const tp=alertTip(a.signature,a.category,a.severity);return`<div class="ai s${a.severity}" data-tip-t="${esc(tp.t)}" data-tip-d="${esc(tp.d)}" data-tip-r="${esc(tp.r)}"><div class="asig">${badge(a.severity)}<span style="color:var(--text2)">${esc(a.signature)}</span></div><div class="ameta"><span style="color:var(--cyan)">${esc(a.src_ip)}</span><span>→</span><span>${esc(a.dest_ip)}${a.dest_port?':'+a.dest_port:''}</span>${a.proto?`<span>${esc(a.proto)}</span>`:''}<span class="ats">${fmtTs(a.timestamp)}</span></div></div>`}).join('');
+  }
+}
+
+// ══ LOAD ALERTS ══
+async function loadAlerts(){
+  try{
+    const r=await fetch('/api/alerts'),d=await r.json();
+    setDot('pill-suri',!d.error);state.alertData=d;
+    const c=d.counts||{};
+    animNum(document.getElementById('n-p1'),c.p1||0);
+    animNum(document.getElementById('n-p2'),c.p2||0);
+    animNum(document.getElementById('n-p3'),c.p3||0);
+    const p1card=document.getElementById('card-p1');
+    if((c.p1||0)>0)p1card.classList.add('has-alerts');else p1card.classList.remove('has-alerts');
+    document.getElementById('alert-count').textContent=`${c.total||0} / 24h`;
+    if(state.prevP1>=0&&(c.p1||0)>state.prevP1)showToast(`⚠ NEW P1 ALERT — ${c.p1} active threat${c.p1>1?'s':''}`);
+    state.prevP1=c.p1||0;
+    const ch=d.chart||{p1:[],p2:[],p3:[]};
+    requestAnimationFrame(()=>{drawSparkline(document.getElementById('spark-p1'),ch.p1,C.red);drawSparkline(document.getElementById('spark-p2'),ch.p2,C.orange);drawSparkline(document.getElementById('spark-p3'),ch.p3,C.yellow)});
+    renderAlerts(d);
+  }catch(e){setDot('pill-suri',false);document.getElementById('alert-list').innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ LOAD SERVICES ══
+async function loadServices(){
+  const list=document.getElementById('svc-list');
+  try{
+    const r=await fetch('/api/services'),d=await r.json();
+    setDot('pill-dock',!d.error);
+    const cs=d.containers||[],up=cs.filter(c=>c.status==='running').length;
+    animNum(document.getElementById('n-svc'),up);
+    document.getElementById('svc-count').textContent=`${up}/${cs.length}`;
+    document.getElementById('svc-detail').textContent=`${cs.length} containers`;
+    list.innerHTML=cs.map(c=>{
+      const label=c.name;
+      const uptime=fmtUptime(c.started,c.status);
+      const stColor=c.status==='running'?'var(--green)':c.status==='exited'?'var(--red)':'var(--yellow)';
+      const tipD=SVC_TIPS[label]||'';
+      const tipAttr=tipD?` data-tip-t="${esc(label.toUpperCase())}" data-tip-d="${esc(tipD)}"`: '';
+      return`<div class="svc"${tipAttr}><div class="si ${c.status}"></div><div class="sn" title="${esc(c.name)}">${esc(label)}</div><div class="ss" style="color:${stColor}">${uptime}</div></div>`;
+    }).join('');
+  }catch(e){setDot('pill-dock',false);list.innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ LOAD DNS ══
+async function loadDns(){
+  const panel=document.getElementById('dns-panel');
+  try{
+    const r=await fetch('/api/dns'),d=await r.json();
+    setDot('pill-dns',!d.error);
+    const data=d.data||{},total=data.dns_queries_today||0,blocked=data.ads_blocked_today||0;
+    const pct=total>0?(blocked/total)*100:0;
+    document.getElementById('n-dns').textContent=pct.toFixed(1)+'%';
+    const topAds=data.top_ads||{},entries=Object.entries(topAds).slice(0,5),maxCnt=Math.max(...entries.map(([,v])=>v),1);
+    const statsHtml=`<div class="dns-row"><span class="dl">Queries</span><span class="dv">${total.toLocaleString()}</span></div><div class="dns-row"><span class="dl">Blocked</span><span class="dv" style="color:var(--green)">${blocked.toLocaleString()}</span></div><div class="dns-row"><span class="dl">Clients</span><span class="dv">${data.unique_clients||'—'}</span></div>`;
+    const topHtml=entries.length?`<div style="font-size:8px;letter-spacing:1.5px;color:var(--text);margin-bottom:5px;text-transform:uppercase;opacity:.5">Top Blocked</div>${entries.map(([dom,cnt])=>`<div class="blk-item"><span class="blk-dom" title="${esc(dom)}">${esc(dom)}</span><div class="blk-bar-wrap"><div class="blk-bar" style="width:${Math.round((cnt/maxCnt)*100)}%"></div></div><span class="blk-cnt">${cnt}</span></div>`).join('')}`:'';
+    panel.innerHTML=`<div class="dns-top"><canvas id="dns-donut" class="dns-donut-cvs"></canvas><div class="dns-stats">${statsHtml}</div></div><div>${topHtml}</div>`;
+    requestAnimationFrame(()=>drawDonut(document.getElementById('dns-donut'),pct,C.green));
+  }catch(e){setDot('pill-dns',false);panel.innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`;document.getElementById('n-dns').textContent='—'}
+}
+
+// ══ LOAD SYSTEM ══
+async function loadSystem(){
+  const panel=document.getElementById('sys-panel');
+  try{
+    const r=await fetch('/api/system'),d=await r.json();
+    setDot('pill-sys',!d.error);if(d.error){panel.innerHTML=`<div class="err">⚠ ${esc(d.error)}</div>`;return}
+    document.getElementById('sys-uptime').textContent=d.uptime_str;
+    const cpuC=d.cpu_pct>80?C.red:d.cpu_pct>60?C.orange:C.green;
+    const ramC=d.ram_pct>85?C.red:d.ram_pct>70?C.orange:C.cyan;
+    const dskC=d.disk_pct>85?C.red:d.disk_pct>70?C.orange:C.cyan;
+    panel.innerHTML=`<div class="sys-row"><span class="sys-l">CPU</span><div class="sys-bar-wrap"><div class="sys-bar" style="width:${d.cpu_pct}%;background:${cpuC}"></div></div><span class="sys-v" style="color:${cpuC}">${d.cpu_pct}%</span></div><div class="sys-row"><span class="sys-l">RAM</span><div class="sys-bar-wrap"><div class="sys-bar" style="width:${d.ram_pct}%;background:${ramC}"></div></div><span class="sys-v" style="color:${ramC}">${d.ram_pct}%</span></div><div class="sys-row"><span class="sys-l">DISK</span><div class="sys-bar-wrap"><div class="sys-bar" style="width:${d.disk_pct}%;background:${dskC}"></div></div><span class="sys-v" style="color:${dskC}">${d.disk_pct}%</span></div><div class="sys-sub"><span>LOAD ${d.load1} / ${d.load5}</span><span>${d.cpu_count} CPU</span></div><div class="sys-detail">${fmtBytes(d.ram_used_gb*1073741824)} / ${fmtBytes(d.ram_total_gb*1073741824)} RAM</div><div class="sys-detail" style="margin-top:2px">↑${fmtBytes(d.bytes_sent)} ↓${fmtBytes(d.bytes_recv)}</div>`;
+  }catch(e){setDot('pill-sys',false);panel.innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ LOAD CERT ══
+async function loadCerts(){
+  try{
+    const r=await fetch('/api/certs'),d=await r.json();
+    const cert=(d.certs||[])[0];if(!cert)return;
+    const days=cert.days_remaining,el=document.getElementById('n-cert'),card=document.getElementById('card-cert');
+    animNum(el,days);
+    if(cert.critical){card.className='card c-red';document.getElementById('cert-domain').textContent='CRITICAL: renew now'}
+    else if(cert.warning){card.className='card c-orange';document.getElementById('cert-domain').textContent=`expires ${cert.expiry}`}
+    else{card.className='card c-purple';document.getElementById('cert-domain').textContent=`exp ${cert.expiry}`}
+  }catch(e){}
+}
+
+// ══ LOAD DEVICES ══
+async function loadDevices(){
+  const list=document.getElementById('dev-list');
+  try{
+    const r=await fetch('/api/devices'),d=await r.json();
+    const devs=d.devices||[],ac=d.active_count||0;
+    document.getElementById('dev-count').textContent=`${ac}/${devs.length} online`;
+    list.innerHTML=devs.map(dv=>{
+      const sc=dv.active===true?'running':dv.active===false?'exited':'created';
+      const col=TAG_COLORS[dv.tag]||'#adc0d5';
+      return`<div class="dev"><div class="si ${sc}" style="flex-shrink:0"></div><span class="dip">${dv.ip}</span><span class="dname">${esc(dv.name)}</span><span class="dtag" style="color:${col};border-color:${col}44">${dv.tag}</span></div>`;
+    }).join('');
+  }catch(e){list.innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ NETWORK MAP ══
+const DEV_STATUS_DESC={
+  active:'Online and generating network traffic in the last 10 minutes (confirmed via ARP table + DNS/flow activity).',
+  present:'In the ARP cache but no recent traffic — likely sleeping, idle, or screen-off. Was active within the last hour.',
+  offline:'No ARP entry and no recent DNS or Suricata flow activity. Device is likely powered off or disconnected.',
+};
+const DEV_TAG_DESC={
+  NET:'Network infrastructure (router, switch, or access point).',
+  SRV:'Homelab homelab server — Ubuntu 24 bare metal running all Docker services.',
+  LAB:'Security lab machine — Kali Linux (YOUR_KALI_IP) used for research and testing.',
+  PER:"Personal device belonging to the operator or Josie.",
+  WORK:'Work-issued laptop or device — may have corporate MDM/VPN software.',
+  IOT:'IoT or smart home device (Echo, Apple TV, smart plug, lights, thermostat). Keep isolated — IoT devices often have weak firmware security.',
+};
+
+function renderDeviceCard(d){
+  const tc=TAG_COLORS[d.tag]||'#adc0d5';
+  const total=d.queries_1h+d.flows_1h;
+  const blkPct=total>0?Math.round((d.blocked_1h/total)*100):0;
+  const barColor=blkPct>30?C.red:blkPct>10?C.orange:C.green;
+  const issues=[];
+  if(d.blocked_1h>0)issues.push(`${d.blocked_1h} BLK`);
+  if(d.nxdomain_1h>0)issues.push(`${d.nxdomain_1h} NXDOM`);
+  const statusLabel=d.status==='offline'?'<span style="opacity:.3">no traffic</span>':d.status==='present'?'<span style="color:var(--cyan);opacity:.6">present</span>':fmtRel(d.last_seen);
+  const tipD=`${DEV_STATUS_DESC[d.status]||''} Tag: ${d.tag} — ${DEV_TAG_DESC[d.tag]||''} DNS queries (1h): ${d.queries_1h}. Network flows (1h): ${d.flows_1h}.${d.blocked_1h?` Blocked: ${d.blocked_1h} — Pi-hole blocked domains from this device.`:''}${d.nxdomain_1h?` NXDOMAIN: ${d.nxdomain_1h} — failed DNS lookups (could be malware C2 probing).`:''}`;
+  const tipR=d.blocked_1h>5?'Elevated blocked queries — open Pi-hole query log and filter by this IP to see what domains it\'s trying to reach.':d.nxdomain_1h>5?'High NXDOMAIN count — device is looking up domains that don\'t exist. Could be malware probing dead C2 domains. Investigate via Pi-hole.':d.status==='offline'?'Device is offline. If unexpected, verify physically or check router DHCP leases.':'No immediate action needed.';
+  return`<div class="nd ${d.status}" data-ip="${esc(d.ip)}" data-name="${esc(d.name)}" data-tip-t="${esc(d.name+' — '+d.ip)}" data-tip-d="${esc(tipD)}" data-tip-r="${esc(tipR)}" title="${esc(d.name)} — click for DNS log">
+    <div class="nd-head"><div class="nd-dot"></div><span class="nd-name" title="${esc(d.name)}">${esc(d.name)}</span><span class="nd-tag" style="color:${tc};border-color:${tc}55">${d.tag}</span></div>
+    <div class="nd-ip">${esc(d.ip)}</div>
+    <div class="nd-stats">
+      <span><span style="color:var(--text2)">${total}</span><span style="opacity:.4"> flows</span></span>
+      ${d.blocked_1h?`<span style="color:var(--red);opacity:.8">✗${d.blocked_1h}</span>`:''}
+      ${d.nxdomain_1h?`<span style="color:var(--orange);opacity:.8">?${d.nxdomain_1h}</span>`:''}
+    </div>
+    ${total>0?`<div class="nd-bar-bg"><div class="nd-bar-fg" style="width:${Math.min(100,blkPct)}%;background:${barColor}"></div></div>`:'<div style="height:3px;margin-bottom:4px"></div>'}
+    <div class="nd-foot"><span>${statusLabel}</span>${issues.length?`<span class="nd-issue">⚠ ${issues.join(' ')}</span>`:''}</div>
+  </div>`;
+}
+
+async function loadNetwork(){
+  const grid=document.getElementById('net-grid'),summary=document.getElementById('net-summary');
+  try{
+    const r=await fetch('/api/network'),d=await r.json();
+    state.netData=d;
+    const devs=d.devices||[];
+    const active=devs.filter(x=>x.status==='active').length;
+    const present=devs.filter(x=>x.status==='present').length;
+    const offline=devs.filter(x=>x.status==='offline').length;
+    const issues=devs.filter(x=>x.blocked_1h>0||x.nxdomain_1h>0).length;
+    summary.innerHTML=`<span style="color:var(--green)">${active} active</span> · <span style="color:var(--cyan)">${present} idle</span> · <span style="color:var(--text);opacity:.5">${offline} offline</span>`+(issues?` · <span style="color:var(--orange)">⚠ ${issues} w/issues</span>`:'');
+
+    const grouped={};
+    devs.forEach(dv=>{const g=TAG_GROUPS[dv.tag]||'Other';(grouped[g]=grouped[g]||[]).push(dv)});
+    let html='';
+    GROUP_ORDER.forEach(grp=>{
+      if(!grouped[grp]?.length)return;
+      html+=`<div class="net-group-label">${grp}</div>`;
+      html+=grouped[grp].map(renderDeviceCard).join('');
+    });
+    Object.entries(grouped).forEach(([grp,devs])=>{
+      if(GROUP_ORDER.includes(grp))return;
+      html+=`<div class="net-group-label">${grp}</div>`;html+=devs.map(renderDeviceCard).join('');
+    });
+
+    const unk=d.unknown||[];
+    if(unk.length){
+      html+=`<div style="grid-column:1/-1"><div class="net-unknown"><div class="unk-title">⚠ Unrecognized Devices on LAN</div><div class="unk-list">${unk.map(u=>`<span class="unk-pill" data-ip="${u.ip}" title="MAC: ${u.mac||'?'} | ${u.queries_1h} DNS / ${u.flows_1h} flows">${u.ip}${u.mac?` <span style="opacity:.4">${u.mac.slice(0,8)}</span>`:''}</span>`).join('')}</div></div></div>`;
+    }
+    grid.innerHTML=html;
+
+    grid.querySelectorAll('[data-ip]').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const dev=devs.find(x=>x.ip===el.dataset.ip)||{name:el.dataset.ip||el.dataset.name,ip:el.dataset.ip,tag:'?',queries_1h:0,blocked_1h:0,nxdomain_1h:0,flows_1h:0};
+        openDrawer(el.dataset.ip,dev);
+      });
+    });
+
+    renderTopTalkers(d.top_talkers||[]);
+  }catch(e){grid.innerHTML=`<div class="err" style="padding:16px">⚠ ${esc(e.message)}</div>`}
+}
+
+function renderTopTalkers(talkers){
+  const list=document.getElementById('tk-list');
+  if(!talkers.length){list.innerHTML='<div class="loading">no flow data</div>';return}
+  const max=talkers[0]?.bytes||1;
+  list.innerHTML=talkers.map((t,i)=>`
+    <div class="tk">
+      <span class="tk-rank">${i+1}</span>
+      <span class="tk-name" title="${esc(t.name)}">${esc(t.name)}</span>
+      <div class="tk-bar-wrap"><div class="tk-bar" style="width:${Math.round((t.bytes/max)*100)}%"></div></div>
+      <span class="tk-bytes">${fmtBytes(t.bytes)}</span>
+    </div>`).join('');
+}
+
+// ══ LOAD EVENTS ══
+async function loadEvents(){
+  const list=document.getElementById('ev-list'),countEl=document.getElementById('ev-count');
+  try{
+    const r=await fetch('/api/events'),d=await r.json();
+    const evs=d.events||[];
+    countEl.textContent=`${evs.length} events`;
+    if(!evs.length){list.innerHTML='<div class="no-events">✓ All quiet</div>';return}
+    list.innerHTML=evs.map(ev=>`
+      <div class="ev ${ev.severity}">
+        <div class="ev-dot"></div>
+        <div class="ev-msg">${esc(ev.msg)}${ev.count>1?` <span style="color:var(--text);opacity:.5">(×${ev.count})</span>`:''}</div>
+        <div class="ev-ts">${ev.ts?fmtTs(ev.ts):''}</div>
+      </div>`).join('');
+  }catch(e){list.innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ DEVICE DRAWER ══
+async function openDrawer(ip,dev){
+  document.getElementById('drawer-title').textContent=dev.name||ip;
+  document.getElementById('drawer-ip').textContent=ip;
+  document.getElementById('drawer-stats').textContent=
+    `${dev.queries_1h||0} queries · ${dev.blocked_1h||0} blocked · ${dev.nxdomain_1h||0} NXDOMAIN · ${dev.flows_1h||0} flows`;
+  document.getElementById('drawer-queries').innerHTML='<div class="loading">loading<span class="blink">_</span></div>';
+  document.getElementById('drawer').style.display='block';
+  try{
+    const r=await fetch(`/api/network/${ip}`),d=await r.json();
+    const qs=d.queries||[];
+    if(!qs.length){document.getElementById('drawer-queries').innerHTML='<div style="font-size:10px;color:var(--text);opacity:.4;padding:16px 0">No DNS queries logged in the last hour.<br><br><span style="opacity:.6">Device may be using DoH or hardcoded DNS.</span></div>';return}
+    document.getElementById('drawer-queries').innerHTML=qs.map(q=>`
+      <div class="nq ${q.type}">
+        <span class="nq-ts">${(q.ts||'').slice(11,19)}</span>
+        <span class="nq-dom" title="${esc(q.domain)}">${esc(q.domain)}</span>
+        ${q.type==='blocked'?'<span class="nq-badge">BLOCKED</span>':''}
+        ${q.type==='nxdomain'?'<span class="nq-badge">NXDOMAIN</span>':''}
+      </div>`).join('');
+  }catch(e){document.getElementById('drawer-queries').innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+function closeDrawer(){document.getElementById('drawer').style.display='none'}
+
+// ══ MISSION BOARD ══
+// Add items here to track certifications, lab goals, and objectives.
+// Each item: {id, label, badge ('done'|'active'|''), desc, steps:[]}
+const MISSIONS={
+  certs:[
+    // Example: {id:'cert-example',label:'Your Certification',badge:'active',desc:'Description here.',steps:['Step 1','Step 2']}
+  ],
+  goals:[
+    // Example: {id:'goal-example',label:'Security Goal',badge:'',desc:'Description here.',steps:['Step 1']}
+  ],
+  lab:[
+    // Example: {id:'lab-example',label:'Lab Objective',badge:'',desc:'Description here.',steps:['Step 1']}
+  ]
+};
+
+const TIPS=[
+  'TCP handshake anomalies (SYN floods, half-open) are detectable via flow state tracking — Suricata\'s stream engine does this automatically.',
+  'MITRE ATT&CK T1071: Application layer protocol abuse. C2 over DNS/HTTP is harder to block than exotic ports.',
+  'Defense in depth: if your IDS fires but your EDR misses it, you still win. Overlapping controls are the point.',
+  'Beacon detection: look for regular intervals (jitter ≤10%) in outbound flows to the same external IP.',
+  'Log correlation beats individual tool alerting. Loki + Grafana is your SIEM — use it.',
+  'Zero-trust means verify every hop, even internal. Lateral movement shows up as east-west traffic in Suricata.',
+  'CVSSv3 base score ignores context. Always apply temporal + environmental metrics before prioritizing a patch.',
+  'Persistence mechanisms: crontab, /etc/init.d, systemd units, bashrc — all worth monitoring for changes.',
+  'OSCP mindset: enumerate everything, assume nothing, document as you go. Same applies to incident response.',
+  'Network segmentation (VLANs) limits blast radius. If Kali is on the same segment as production, that\'s a problem.',
+];
+
+function renderMission(){
+  const saved=JSON.parse(localStorage.getItem('ops_mission')||'{}');
+
+  function makeItem(item){
+    const isDone=item.badge==='done';
+    const isActive=item.badge==='active';
+    const isChecked=isDone||saved[item.id]===true;
+    const badgeHtml=isDone?'<span class="mi-badge-done">DONE</span>':isActive?'<span class="mi-badge-active">ACTIVE</span>':'';
+    const stepsHtml=item.steps.length?`<div class="mi-steps"><div class="mi-steps-lbl">Where to start</div>${item.steps.map(s=>`<div class="mi-step">${esc(s)}</div>`).join('')}</div>`:'';
+    const hasDetail=item.desc||item.steps.length;
+    return`<div class="mi${isChecked?' checked':''}" data-mid="${item.id}">
+      <div class="mi-hd">
+        <div class="mi-cb${isChecked?' ck':''}"></div>
+        <span class="mi-lbl">${esc(item.label)}${badgeHtml}</span>
+        ${hasDetail?'<span class="mi-caret">▶</span>':''}
+      </div>
+      ${hasDetail?`<div class="mi-body">${esc(item.desc)}${stepsHtml}</div>`:''}
+    </div>`;
+  }
+
+  const allItems=[...MISSIONS.certs,...MISSIONS.goals,...MISSIONS.lab];
+  const tip=TIPS[Math.floor(Date.now()/600000)%TIPS.length];
+
+  if(allItems.length===0){
+    document.getElementById('mission-panel').innerHTML=`
+      <div style="padding:18px 12px;text-align:center;color:var(--text);opacity:.6;font-size:10px;letter-spacing:1px;line-height:1.9">
+        No missions yet.<br>
+        Add items to <code style="color:var(--cyan);font-size:9px">MISSIONS</code> in <code style="color:var(--cyan);font-size:9px">static/index.html</code><br>
+        to track certs, goals, and lab objectives.
+      </div>
+      <div class="tip-box">
+        <div class="tip-label">⚡ analyst tip</div>
+        <div class="tip-text">${esc(tip)}</div>
+      </div>`;
+    return;
+  }
+
+  const sections=[
+    {key:'certs',title:'Certifications'},
+    {key:'goals',title:'Security Goals'},
+    {key:'lab',title:'Lab Objectives'},
+  ].filter(s=>MISSIONS[s.key].length>0);
+
+  document.getElementById('mission-panel').innerHTML=
+    sections.map(s=>`
+      <div class="mission-section">
+        <div class="mission-title">${s.title}</div>
+        ${MISSIONS[s.key].map(makeItem).join('')}
+      </div>`).join('')+`
+    <div class="tip-box">
+      <div class="tip-label">⚡ analyst tip</div>
+      <div class="tip-text">${esc(tip)}</div>
+    </div>`;
+
+  // Wire up expand/collapse and checkboxes via event delegation
+  document.getElementById('mission-panel').addEventListener('click',e=>{
+    const cb=e.target.closest('.mi-cb');
+    if(cb){
+      const mi=cb.closest('.mi');
+      if(!mi)return;
+      const mid=mi.dataset.mid;
+      // Permanently done items can't be unchecked
+      if(mi.querySelector('.mi-badge-done'))return;
+      const s=JSON.parse(localStorage.getItem('ops_mission')||'{}');
+      const now=!s[mid];
+      s[mid]=now;
+      localStorage.setItem('ops_mission',JSON.stringify(s));
+      cb.classList.toggle('ck',now);
+      mi.classList.toggle('checked',now);
+      return;
+    }
+    const hd=e.target.closest('.mi-hd');
+    if(hd&&!e.target.closest('.mi-cb')){
+      hd.closest('.mi').classList.toggle('open');
+    }
+  });
+
+  // Auto-expand active goal
+  const activeEl=document.querySelector('.mi-badge-active')?.closest('.mi');
+  if(activeEl)activeEl.classList.add('open');
+}
+
+// ══ TOOLTIP SYSTEM ══
+const _tip=document.getElementById('tip');
+let _tipTimer=null;
+
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest('[data-tip-t]');
+  if(!el)return;
+  clearTimeout(_tipTimer);
+  _tipTimer=setTimeout(()=>{
+    const t=el.getAttribute('data-tip-t')||'';
+    const d=el.getAttribute('data-tip-d')||'';
+    const r=el.getAttribute('data-tip-r')||'';
+    _tip.innerHTML=`<div class="tip-t">${t}</div><div class="tip-d">${d}</div>${r?`<div class="tip-r"><div class="tip-rl">⚡ remediation</div><div class="tip-rt">${r}</div></div>`:''}`;
+    _tip.style.display='block';
+    _tipPos(e);
+    requestAnimationFrame(()=>_tip.classList.add('show'));
+  },350);
+});
+
+document.addEventListener('mousemove',e=>{
+  if(_tip.classList.contains('show'))_tipPos(e);
+});
+
+document.addEventListener('mouseout',e=>{
+  if(!e.target.closest('[data-tip-t]'))return;
+  clearTimeout(_tipTimer);
+  _tip.classList.remove('show');
+  setTimeout(()=>{if(!_tip.classList.contains('show'))_tip.style.display='none';},160);
+});
+
+function _tipPos(e){
+  let x=e.clientX+16,y=e.clientY+16;
+  const tw=_tip.offsetWidth||300,th=_tip.offsetHeight||100;
+  if(x+tw>window.innerWidth-8)x=e.clientX-tw-8;
+  if(y+th>window.innerHeight-8)y=e.clientY-th-8;
+  _tip.style.left=x+'px';_tip.style.top=y+'px';
+}
+
+// ══ INLINE CLAUDE ══
+async function sendClaudeInline(){
+  const inp=document.getElementById('cl-inline-inp');
+  const msgs=document.getElementById('cl-inline-msgs');
+  const btn=document.getElementById('cl-inline-btn');
+  const msg=inp.value.trim();
+  if(!msg)return;
+  inp.value='';btn.disabled=true;
+  msgs.innerHTML+=`<div class="cl-msg user" style="font-size:10px">${esc(msg)}</div>`;
+  const tid='thi-'+Date.now();
+  msgs.innerHTML+=`<div class="cl-msg thinking" id="${tid}" style="font-size:9px">thinking…</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  try{
+    const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,include_context:true})});
+    const d=await r.json();
+    document.getElementById(tid)?.remove();
+    msgs.innerHTML+=d.error
+      ?`<div class="cl-msg err" style="font-size:10px">⚠ ${esc(d.error)}</div>`
+      :`<div class="cl-msg asst" style="font-size:10px">${esc(d.response||'')}</div>`;
+  }catch(ex){
+    document.getElementById(tid)?.remove();
+    msgs.innerHTML+=`<div class="cl-msg err" style="font-size:10px">⚠ ${esc(ex.message)}</div>`;
+  }
+  btn.disabled=false;msgs.scrollTop=msgs.scrollHeight;inp.focus();
+}
+document.getElementById('cl-inline-btn').addEventListener('click',sendClaudeInline);
+document.getElementById('cl-inline-inp').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendClaudeInline();}
+});
+document.querySelectorAll('.cli-qp').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const inp=document.getElementById('cl-inline-inp');
+    inp.value=btn.dataset.qp||'';
+    inp.focus();inp.selectionStart=inp.selectionEnd=inp.value.length;
+  });
+});
+
+// ══ CLAUDE PANEL ══
+function openClaude(){
+  document.getElementById('claude-modal').style.display='block';
+  document.getElementById('claude-inp').focus();
+}
+function closeClaude(){
+  document.getElementById('claude-modal').style.display='none';
+}
+
+document.getElementById('claude-open-btn').addEventListener('click',openClaude);
+document.getElementById('claude-fab').addEventListener('click',openClaude);
+document.getElementById('claude-ov').addEventListener('click',closeClaude);
+document.getElementById('claude-close').addEventListener('click',closeClaude);
+
+document.getElementById('claude-inp').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendClaude();}
+});
+document.getElementById('claude-btn').addEventListener('click',sendClaude);
+
+document.querySelectorAll('.cl-qp').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const inp=document.getElementById('claude-inp');
+    inp.value=btn.dataset.qp||'';
+    inp.focus();
+    inp.selectionStart=inp.selectionEnd=inp.value.length;
+  });
+});
+
+async function sendClaude(){
+  const inp=document.getElementById('claude-inp');
+  const msg=inp.value.trim();
+  if(!msg)return;
+  const msgs=document.getElementById('claude-msgs');
+  const btn=document.getElementById('claude-btn');
+  const ctx=document.getElementById('claude-ctx-chk').checked;
+  inp.value='';
+  btn.disabled=true;
+  msgs.innerHTML+=`<div class="cl-msg user">${esc(msg)}</div>`;
+  const thinkId='th-'+Date.now();
+  msgs.innerHTML+=`<div class="cl-msg thinking" id="${thinkId}">thinking…</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  try{
+    const r=await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,include_context:ctx})});
+    const d=await r.json();
+    document.getElementById(thinkId)?.remove();
+    if(d.error){msgs.innerHTML+=`<div class="cl-msg err">⚠ ${esc(d.error)}</div>`;}
+    else{msgs.innerHTML+=`<div class="cl-msg asst">${esc(d.response||'')}</div>`;}
+  }catch(ex){
+    document.getElementById(thinkId)?.remove();
+    msgs.innerHTML+=`<div class="cl-msg err">⚠ Network error: ${esc(ex.message)}</div>`;
+  }
+  btn.disabled=false;
+  msgs.scrollTop=msgs.scrollHeight;
+  inp.focus();
+}
+
+// ══ LOAD SSH EVENTS ══
+async function loadSsh(){
+  const panel=document.getElementById('ssh-panel'),countEl=document.getElementById('ssh-count');
+  try{
+    const r=await fetch('/api/ssh'),d=await r.json();
+    const evs=d.events||[],st=d.stats||{};
+    countEl.textContent=`${st.success_24h||0} in · ${st.failure_24h||0} fail`;
+    if(d.error&&!evs.length){panel.innerHTML=`<div class="err">⚠ ${esc(d.error)}</div>`;return}
+    let html='';
+    if(st.brute_force?.length){
+      html+=`<div class="ssh-brute">⚠ Brute force: ${st.brute_force.map(b=>`${b.ip} (${b.count}×)`).join(', ')}</div>`;
+    }
+    const displayEvs=evs.filter(e=>e.type!=='disconnect'&&e.type!=='preauth'||evs.filter(e=>e.type==='failure'||e.type==='invalid').length<5?true:e.type!=='preauth').slice(0,30);
+    html+=`<div class="ssh-stat-row">
+      <div class="ssh-stat"><span class="ssh-stat-n" style="color:var(--green)">${st.success_24h||0}</span><span class="ssh-stat-l">Logins</span></div>
+      <div class="ssh-stat"><span class="ssh-stat-n" style="color:var(--red)">${st.failure_24h||0}</span><span class="ssh-stat-l">Failures</span></div>
+      <div class="ssh-stat"><span class="ssh-stat-n" style="color:var(--orange)">${st.preauth_24h||0}</span><span class="ssh-stat-l">Preauth</span></div>
+    </div>`;
+    if(!evs.length){html+='<div class="no-events">✓ No SSH events in 24h</div>';}
+    else{
+      html+=evs.slice(0,25).map(e=>{
+        const ts=e.ts?e.ts.replace('T',' ').slice(5,16):'';
+        const tipT=e.type==='success'?'SSH LOGIN SUCCESS':e.type==='failure'?'SSH LOGIN FAILURE':e.type==='invalid'?'SSH INVALID USER':'SSH EVENT';
+        const tipD=e.type==='success'?`Successful SSH login. User: ${e.user||'?'} | Source IP: ${e.ip||'?'} | Auth method: ${e.method||'?'}. Login recorded in wtmp — check with "last" command.`:
+          e.type==='failure'?`Failed login attempt. User: ${e.user||'?'} | Source IP: ${e.ip||'?'} | Method: ${e.method||'?'}. Could be typo, credential stuffing, or brute force.`:
+          e.type==='invalid'?`Login attempt with a username that doesn't exist on this system. User tried: "${e.user||'?'}" from ${e.ip||'?'}. Common indicator of automated scanning.`:
+          e.type==='preauth'?`Connection dropped before authentication completed from ${e.ip||'?'}. High volume of these = automated scanner probing the SSH port.`:
+          `SSH event from ${e.ip||'?'}`;
+        const tipR=e.type==='failure'||e.type==='invalid'?`If from external IP: check fail2ban status (fail2ban-client status sshd). If ${(st.failure_24h||0)>10?'high volume ('+st.failure_24h+' failures in 24h) — consider disabling password auth: PasswordAuthentication no in /etc/ssh/sshd_config':'repeated from same IP — monitor for escalation'}.`:'No action needed.';
+        return`<div class="ssh-ev ${e.type}" data-tip-t="${esc(tipT)}" data-tip-d="${esc(tipD)}" data-tip-r="${esc(tipR)}"><div class="ssh-dot"></div><span class="ssh-msg">${esc(e.msg)}</span><span class="ssh-ts">${ts}</span></div>`;
+      }).join('');
+    }
+    panel.innerHTML=html;
+  }catch(e){if(document.getElementById('ssh-panel'))document.getElementById('ssh-panel').innerHTML=`<div class="err">⚠ ${esc(e.message)}</div>`}
+}
+
+// ══ REFRESH LOOP ══
+let cd=30;
+const cd1=document.getElementById('cdtxt'),cd2=document.getElementById('cdtxt2');
+setInterval(()=>{cd--;if(cd1)cd1.textContent=cd;if(cd2)cd2.textContent=cd;if(cd<=0){cd=30;loadAll()}},1000);
+
+async function loadAll(){
+  const ts=new Date(),p=x=>String(x).padStart(2,'0');
+  document.getElementById('last-refresh').textContent=`↻ ${p(ts.getHours())}:${p(ts.getMinutes())}:${p(ts.getSeconds())} ET`;
+  await Promise.all([loadAlerts(),loadServices(),loadDns(),loadSystem(),loadDevices(),loadNetwork(),loadEvents(),loadCerts(),loadSsh()]);
+}
+
+// ══ KEYBOARD SHORTCUTS ══
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='r'||e.key==='R')cd=1;
+  if(e.key==='g'||e.key==='G')toggleView();
+  if(e.key==='0')setFilter('all');if(e.key==='1')setFilter('1');
+  if(e.key==='2')setFilter('2');if(e.key==='3')setFilter('3');
+  if(e.key==='Escape'){closeDrawer();closeClaude();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='k')openClaude();
+});
+
+// ══ INIT ══
+document.querySelectorAll('.af').forEach(b=>b.addEventListener('click',()=>setFilter(b.dataset.f)));
+document.getElementById('view-toggle').addEventListener('click',toggleView);
+document.getElementById('drawer-close').addEventListener('click',closeDrawer);
+document.getElementById('drawer-overlay').addEventListener('click',closeDrawer);
+
+renderMission();
+loadAll();
+</script>
+</body>
+</html>
